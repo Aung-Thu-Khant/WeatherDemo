@@ -27,6 +27,15 @@ class Login : AppCompatActivity() {
 
         binding = ActivityLoginBinding.inflate(layoutInflater)
 
+        val shp = getSharedPreferences("loginInfo", Context.MODE_PRIVATE)
+        val info = shp.getBoolean("saveLogin", false)
+
+        if(info){
+            val intent = Intent(this, MainActivity::class.java)
+            startActivity(intent)
+            finish()
+        }
+
         binding.btnLogin.setOnClickListener {
             var email = binding.etEmail.editText!!.text.toString()
             var password = binding.etPassword.editText!!.text.toString()
@@ -53,11 +62,19 @@ class Login : AppCompatActivity() {
             startActivity(intent)
         }
 
+
+
         setContentView(binding.root)
 
     }
 
     fun loginAccount(mail: String, password: String){
+        if ( binding.chLoginSave.isChecked ) {
+            val sharePreference = getSharedPreferences("loginInfo", Context.MODE_PRIVATE)
+            val editor = sharePreference.edit()
+            editor.putBoolean("saveLogin", true)
+            editor.commit()
+        }
         if (checkInternetConnection(this)){
             //Login
             FirebaseAuth.getInstance().signInWithEmailAndPassword(mail,password).addOnCompleteListener { task ->

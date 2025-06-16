@@ -3,12 +3,15 @@ package com.example.weatherdemo.view.auth
 import android.content.Intent
 import android.os.Bundle
 import android.text.TextUtils
+import android.view.View
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.weatherdemo.R
 import com.example.weatherdemo.databinding.ActivityForgetPasswordBinding
+import com.google.firebase.auth.FirebaseAuth
 
 class ForgetPassword : AppCompatActivity() {
 
@@ -26,6 +29,7 @@ class ForgetPassword : AppCompatActivity() {
                 binding.etEmail.requestFocus()
             } else {
                // send link to user mail
+                forgerPasswordReset(email)
             }
         }
 
@@ -37,6 +41,19 @@ class ForgetPassword : AppCompatActivity() {
         setContentView(binding.root)
 
     }
+
+    fun forgerPasswordReset(mail: String){
+        FirebaseAuth.getInstance().sendPasswordResetEmail(mail).addOnCompleteListener { task ->
+            if(task.isSuccessful){
+                binding.textView.visibility = View.VISIBLE
+                binding.btnForgetOk.visibility = View.VISIBLE
+                binding.btnNext.isEnabled = false
+            }else{
+                Toast.makeText(this, "Error: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
 }
 
 // find id
