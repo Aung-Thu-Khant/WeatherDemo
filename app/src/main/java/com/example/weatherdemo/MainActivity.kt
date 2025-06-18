@@ -2,6 +2,7 @@ package com.example.weatherdemo
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -11,7 +12,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.weatherdemo.adapter.MyHourlyAdapter
 import com.example.weatherdemo.databinding.ActivityMainBinding
+import com.example.weatherdemo.model.MyHourly
 import com.example.weatherdemo.model.Weather
 import com.example.weatherdemo.network.ApiInterface
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -20,12 +24,14 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.Locale
+import kotlin.collections.isNotEmpty
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-
+    private lateinit var hrList: ArrayList<MyHourly>
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
@@ -53,6 +59,11 @@ class MainActivity : AppCompatActivity() {
             if(location != null){
                 val latitude = location.latitude
                 val longitude = location.longitude
+                val cityName = getTownship(latitude, longitude)
+                runOnUiThread {
+                    binding.txtTownShip.text = cityName.toString()
+                }
+                Log.d("Location", "Latitude: $latitude, Longitude: $longitude, City: $cityName")
                 Toast.makeText(this, "Lat: $latitude, Lon: $longitude", Toast.LENGTH_SHORT).show()
             }else{
                 Toast.makeText(this, "Location not available", Toast.LENGTH_SHORT).show()
@@ -67,8 +78,23 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    private fun getTownship(latitude: Double, longitude: Double): String? {
+        val geocoder = Geocoder(this, Locale.getDefault())
+        return try {
+            val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+            if (addresses != null && addresses.isNotEmpty()) {
+                addresses[0].adminArea
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 
     fun fetchWeatherData(){
+        hrList = arrayListOf()
         // Step 1 Create Retrofit
         val retrofit = Retrofit.Builder()
             .baseUrl("https://api.open-meteo.com/" ) // Replace with your API base URL
@@ -97,6 +123,26 @@ class MainActivity : AppCompatActivity() {
                         var todayTemperature = weather.current.temperature_2m.toString()+weather.current_units.temperature_2m.toString()
                         Log.d("Weather", "Current Temperature: $todayTemperature")
                         binding.txtCurrentTemp.text = todayTemperature
+
+                        //Max Min Current day
+                        val maxTmp = weather.daily.temperature_2m_max[0].toString()
+                        val minTmp = weather.daily.temperature_2m_min[0].toString()
+                        binding.txtCurrentMaxMin.text = "$maxTmp° / $minTmp° Feels like $todayTemperature°"
+
+                        for(i in 0..23){
+                            val time = weather.hourly.time[i].substringAfter("T")
+                            val tmp = weather.hourly.temperature_2m[i].toString() + weather.hourly_units.temperature_2m
+                            val rain = weather.hourly.rain[i].toString()
+                            val hourlyData = MyHourly(time, tmp, rain)
+                            hrList.add(hourlyData)
+                        }
+                        // Update RecyclerView adapter
+                        val adapter = MyHourlyAdapter(this@MainActivity, hrList)
+                        runOnUiThread {
+                            binding.rvHourly.layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false)
+                            binding.rvHourly.adapter = adapter
+                        }
+
 
                     } else {
                         Toast.makeText(this@MainActivity, "No weather data available", Toast.LENGTH_SHORT).show()
