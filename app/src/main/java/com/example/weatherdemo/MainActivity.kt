@@ -14,8 +14,10 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.weatherdemo.adapter.MyHourlyAdapter
+import com.example.weatherdemo.adapter.MyWeeklyAdapter
 import com.example.weatherdemo.databinding.ActivityMainBinding
 import com.example.weatherdemo.model.MyHourly
+import com.example.weatherdemo.model.MyWeekly
 import com.example.weatherdemo.model.Weather
 import com.example.weatherdemo.network.ApiInterface
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -32,6 +34,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var hrList: ArrayList<MyHourly>
+    private lateinit var wkList: ArrayList<MyWeekly>
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
@@ -95,6 +98,7 @@ class MainActivity : AppCompatActivity() {
 
     fun fetchWeatherData(){
         hrList = arrayListOf()
+        wkList = arrayListOf()
         // Step 1 Create Retrofit
         val retrofit = Retrofit.Builder()
             .baseUrl("https://api.open-meteo.com/" ) // Replace with your API base URL
@@ -129,18 +133,36 @@ class MainActivity : AppCompatActivity() {
                         val minTmp = weather.daily.temperature_2m_min[0].toString()
                         binding.txtCurrentMaxMin.text = "$maxTmp° / $minTmp° Feels like $todayTemperature°"
 
+                        //Wind Speed
+                        val windSpeed = weather.current.wind_speed_10m.toString() + weather.current_units.wind_speed_10m.toString()
+                        binding.txtWindSpeed.text = windSpeed
+
                         for(i in 0..23){
                             val time = weather.hourly.time[i].substringAfter("T")
                             val tmp = weather.hourly.temperature_2m[i].toString() + weather.hourly_units.temperature_2m
                             val rain = weather.hourly.rain[i].toString()
                             val hourlyData = MyHourly(time, tmp, rain)
                             hrList.add(hourlyData)
+
+                            if( i <= 6){
+                                var wkDate = weather.daily.time[i].toString()
+                                var wkRain = weather.daily.rain_sum[i].toString()
+                                var wkMaxTmp = weather.daily.temperature_2m_max[i].toString()
+                                var wkMinTmp = weather.daily.temperature_2m_min[i].toString()
+                                val wkData = MyWeekly(wkDate, wkMaxTmp, wkMinTmp, wkRain)
+                                wkList.add(wkData)
+                            }
+
+
                         }
                         // Update RecyclerView adapter
                         val adapter = MyHourlyAdapter(this@MainActivity, hrList)
+                        val wkAdapter = MyWeeklyAdapter(this@MainActivity, wkList)
                         runOnUiThread {
                             binding.rvHourly.layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false)
                             binding.rvHourly.adapter = adapter
+                            binding.rvWeekly.layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.VERTICAL, false)
+                            binding.rvWeekly.adapter = wkAdapter
                         }
 
 
